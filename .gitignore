@@ -1,0 +1,10 @@
+build/
+BufferPoolManagerTest_db/
+windows-app-timer/
+*.db
+*.log
+*.idx
+*.tbl
+output.txt
+.DS_Store
+._*
