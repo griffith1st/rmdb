@@ -16,16 +16,11 @@ See the Mulan PSL v2 for more details. */
  */
 void IxScan::next() {
     assert(!is_end());
-    IxNodeHandle *node = ih_->fetch_node(iid_.page_no);
-    assert(node->is_leaf_page());
-    assert(iid_.slot_no < node->get_size());
-    // increment slot no
+
+    // IxIndexHandle exposes the current index as one sorted leaf sequence.
+    // Its Iid page number is kept at IX_INIT_ROOT_PAGE, so advancing a scan
+    // only changes the position within that sequence.
     iid_.slot_no++;
-    if (iid_.page_no != ih_->file_hdr_->last_leaf_ && iid_.slot_no == node->get_size()) {
-        // go to next leaf
-        iid_.slot_no = 0;
-        iid_.page_no = node->get_next_leaf();
-    }
 }
 
 Rid IxScan::rid() const {

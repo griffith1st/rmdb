@@ -124,6 +124,10 @@ IxIndexHandle::IxIndexHandle(DiskManager *disk_manager, BufferPoolManager *buffe
     g_index_entries[fd_].clear();
 }
 
+IxIndexHandle::~IxIndexHandle() {
+    delete file_hdr_;
+}
+
 std::pair<IxNodeHandle *, bool> IxIndexHandle::find_leaf_page(const char *key, Operation operation,
                                                               Transaction *transaction, bool find_first) {
     (void)key;
@@ -292,7 +296,13 @@ void IxIndexHandle::erase_leaf(IxNodeHandle *leaf) {
 }
 
 void IxIndexHandle::release_node_handle(IxNodeHandle &node) {
-    (void)node;
+    if (node.page == nullptr) {
+        return;
+    }
+
+    PageId page_id = node.page->get_page_id();
+    buffer_pool_manager_->unpin_page(page_id, false);
+    delete &node;
 }
 
 void IxIndexHandle::maintain_child(IxNodeHandle *node, int child_idx) {

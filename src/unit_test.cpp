@@ -33,6 +33,7 @@ See the Mulan PSL v2 for more details. */
 #include <vector>
 
 #include "gtest/gtest.h"
+#include "index/ix.h"
 #include "replacer/lru_replacer.h"
 #include "storage/disk_manager.h"
 
@@ -660,4 +661,49 @@ TEST(RecordManagerTest, SimpleTest) {
     // clean up
     rm_manager->close_file(file_handle.get());
     rm_manager->destroy_file(filename);
+}
+
+TEST(IndexScanTest, RangeScanAdvancesAcrossEntries) {
+    auto disk_manager = std::make_unique<DiskManager>();
+    auto buffer_pool_manager = std::make_unique<BufferPoolManager>(BUFFER_POOL_SIZE, disk_manager.get());
+    IxManager ix_manager(disk_manager.get(), buffer_pool_manager.get());
+
+    const std::string table_name = "ix_scan_test";
+    ColMeta col;
+    col.tab_name = table_name;
+    col.name = "id";
+    col.type = TYPE_INT;
+    col.len = sizeof(int);
+    col.offset = 0;
+    col.index = true;
+    std::vector<ColMeta> index_cols{col};
+    const std::string index_name = ix_manager.get_index_name(table_name, index_cols);
+
+    if (disk_manager->is_file(index_name)) {
+        disk_manager->destroy_file(index_name);
+    }
+    ix_manager.create_index(table_name, index_cols);
+    auto index = ix_manager.open_index(table_name, index_cols);
+    for (int key = 0; key < 8; ++key) {
+        index->insert_entry(reinterpret_cast<const char *>(&key), Rid{key + 1, 0}, nullptr);
+    }
+
+    int lower_key = 2;
+    int upper_key = 6;
+    IxScan scan(index.get(), index->lower_bound(reinterpret_cast<const char *>(&lower_key)),
+                index->upper_bound(reinterpret_cast<const char *>(&upper_key)), buffer_pool_manager.get());
+
+    std::vector<Rid> result;
+    for (; !scan.is_end(); scan.next()) {
+        result.push_back(scan.rid());
+    }
+
+    ASSERT_EQ(result.size(), 5U);
+    for (size_t i = 0; i < result.size(); ++i) {
+        EXPECT_EQ(result[i], (Rid{static_cast<int>(i) + 3, 0}));
+    }
+
+    ix_manager.close_index(index.get());
+    index.reset();
+    ix_manager.destroy_index(table_name, index_cols);
 }
