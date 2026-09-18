@@ -23,11 +23,16 @@ class RecoveryManager {
     void redo();
     void undo();
 
+    lsn_t next_lsn() const { return next_lsn_; }
+    txn_id_t next_txn_id() const { return next_txn_id_; }
+
    private:
     std::vector<std::unique_ptr<LogRecord>> logs_;
     std::set<txn_id_t> committed_txns_;
     std::set<txn_id_t> aborted_txns_;
     std::set<txn_id_t> active_txns_;
+    lsn_t next_lsn_ = 0;
+    txn_id_t next_txn_id_ = 0;
 
     DiskManager *disk_manager_;
     BufferPoolManager *buffer_pool_manager_;

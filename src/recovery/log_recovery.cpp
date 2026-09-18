@@ -3,123 +3,61 @@ RMDB is licensed under Mulan PSL v2. */
 
 #include "log_recovery.h"
 
+#include <algorithm>
 #include <cstring>
+#include <limits>
+#include <map>
+#include <tuple>
+#include <unistd.h>
 
 #include "execution/index_utils.h"
-#include "record/rm_file_handle.h"
+#include "record/rm_scan.h"
 
 namespace {
-std::string table_name_from(const char *name, size_t size) {
-    return std::string(name, size);
+// Validate lengths before deserializers allocate or copy a possibly torn record.
+bool valid_payload(const char *data, size_t length, LogType type) {
+    if (type == LogType::begin || type == LogType::commit || type == LogType::ABORT) {
+        return length == LOG_HEADER_SIZE;
+    }
+    size_t offset = LOG_HEADER_SIZE;
+    int images = type == LogType::UPDATE ? 2 : 1;
+    for (int i = 0; i < images; ++i) {
+        if (length - offset < sizeof(int)) return false;
+        int size;
+        memcpy(&size, data + offset, sizeof(size));
+        offset += sizeof(size);
+        if (size <= 0 || size > RM_MAX_RECORD_SIZE || static_cast<size_t>(size) > length - offset) return false;
+        offset += size;
+    }
+    if (length - offset < sizeof(Rid) + sizeof(size_t)) return false;
+    offset += sizeof(Rid);
+    size_t name_size;
+    memcpy(&name_size, data + offset, sizeof(name_size));
+    offset += sizeof(name_size);
+    return name_size > 0 && name_size == length - offset;
 }
 
-bool record_exists(RmFileHandle *fh, const Rid &rid) {
-    try {
-        auto rec = fh->get_record(rid, nullptr);
-        (void)rec;
-        return true;
-    } catch (RMDBError &) {
+struct Change {
+    std::string table;
+    Rid rid;
+    const RmRecord *before;
+    const RmRecord *after;
+};
+
+bool change_from(const LogRecord *record, Change &change) {
+    if (record->log_type_ == LogType::INSERT) {
+        auto log = static_cast<const InsertLogRecord *>(record);
+        change = {std::string(log->table_name_, log->table_name_size_), log->rid_, nullptr, &log->insert_value_};
+    } else if (record->log_type_ == LogType::DELETE) {
+        auto log = static_cast<const DeleteLogRecord *>(record);
+        change = {std::string(log->table_name_, log->table_name_size_), log->rid_, &log->delete_value_, nullptr};
+    } else if (record->log_type_ == LogType::UPDATE) {
+        auto log = static_cast<const UpdateLogRecord *>(record);
+        change = {std::string(log->table_name_, log->table_name_size_), log->rid_, &log->old_value_, &log->new_value_};
+    } else {
         return false;
     }
-}
-
-void insert_indexes(SmManager *sm_manager, const std::string &tab_name, const TabMeta &tab,
-                    const RmRecord &rec, const Rid &rid) {
-    for (auto &index : tab.indexes) {
-        auto ih = sm_manager->ihs_.at(sm_manager->get_ix_manager()->get_index_name(tab_name, index.cols)).get();
-        auto key = make_index_key(index, rec.data);
-        try {
-            ih->insert_entry(key.get(), rid, nullptr);
-        } catch (RMDBError &) {
-        }
-    }
-}
-
-void delete_indexes(SmManager *sm_manager, const std::string &tab_name, const TabMeta &tab,
-                    const RmRecord &rec) {
-    for (auto &index : tab.indexes) {
-        auto ih = sm_manager->ihs_.at(sm_manager->get_ix_manager()->get_index_name(tab_name, index.cols)).get();
-        auto key = make_index_key(index, rec.data);
-        ih->delete_entry(key.get(), nullptr);
-    }
-}
-
-void redo_insert(SmManager *sm_manager, const InsertLogRecord *log) {
-    std::string tab_name = table_name_from(log->table_name_, log->table_name_size_);
-    TabMeta &tab = sm_manager->db_.get_table(tab_name);
-    RmFileHandle *fh = sm_manager->fhs_.at(tab_name).get();
-    if (record_exists(fh, log->rid_)) {
-        auto old = fh->get_record(log->rid_, nullptr);
-        delete_indexes(sm_manager, tab_name, tab, *old);
-        fh->update_record(log->rid_, log->insert_value_.data, nullptr);
-    } else {
-        fh->insert_record(log->rid_, log->insert_value_.data);
-    }
-    insert_indexes(sm_manager, tab_name, tab, log->insert_value_, log->rid_);
-}
-
-void redo_delete(SmManager *sm_manager, const DeleteLogRecord *log) {
-    std::string tab_name = table_name_from(log->table_name_, log->table_name_size_);
-    TabMeta &tab = sm_manager->db_.get_table(tab_name);
-    RmFileHandle *fh = sm_manager->fhs_.at(tab_name).get();
-    if (!record_exists(fh, log->rid_)) {
-        return;
-    }
-    auto old = fh->get_record(log->rid_, nullptr);
-    delete_indexes(sm_manager, tab_name, tab, *old);
-    fh->delete_record(log->rid_, nullptr);
-}
-
-void redo_update(SmManager *sm_manager, const UpdateLogRecord *log) {
-    std::string tab_name = table_name_from(log->table_name_, log->table_name_size_);
-    TabMeta &tab = sm_manager->db_.get_table(tab_name);
-    RmFileHandle *fh = sm_manager->fhs_.at(tab_name).get();
-    if (!record_exists(fh, log->rid_)) {
-        return;
-    }
-    auto old = fh->get_record(log->rid_, nullptr);
-    delete_indexes(sm_manager, tab_name, tab, *old);
-    fh->update_record(log->rid_, log->new_value_.data, nullptr);
-    insert_indexes(sm_manager, tab_name, tab, log->new_value_, log->rid_);
-}
-
-void undo_insert(SmManager *sm_manager, const InsertLogRecord *log) {
-    std::string tab_name = table_name_from(log->table_name_, log->table_name_size_);
-    TabMeta &tab = sm_manager->db_.get_table(tab_name);
-    RmFileHandle *fh = sm_manager->fhs_.at(tab_name).get();
-    if (!record_exists(fh, log->rid_)) {
-        return;
-    }
-    auto old = fh->get_record(log->rid_, nullptr);
-    delete_indexes(sm_manager, tab_name, tab, *old);
-    fh->delete_record(log->rid_, nullptr);
-}
-
-void undo_delete(SmManager *sm_manager, const DeleteLogRecord *log) {
-    std::string tab_name = table_name_from(log->table_name_, log->table_name_size_);
-    TabMeta &tab = sm_manager->db_.get_table(tab_name);
-    RmFileHandle *fh = sm_manager->fhs_.at(tab_name).get();
-    if (record_exists(fh, log->rid_)) {
-        auto old = fh->get_record(log->rid_, nullptr);
-        delete_indexes(sm_manager, tab_name, tab, *old);
-        fh->update_record(log->rid_, log->delete_value_.data, nullptr);
-    } else {
-        fh->insert_record(log->rid_, log->delete_value_.data);
-    }
-    insert_indexes(sm_manager, tab_name, tab, log->delete_value_, log->rid_);
-}
-
-void undo_update(SmManager *sm_manager, const UpdateLogRecord *log) {
-    std::string tab_name = table_name_from(log->table_name_, log->table_name_size_);
-    TabMeta &tab = sm_manager->db_.get_table(tab_name);
-    RmFileHandle *fh = sm_manager->fhs_.at(tab_name).get();
-    if (!record_exists(fh, log->rid_)) {
-        return;
-    }
-    auto old = fh->get_record(log->rid_, nullptr);
-    delete_indexes(sm_manager, tab_name, tab, *old);
-    fh->update_record(log->rid_, log->old_value_.data, nullptr);
-    insert_indexes(sm_manager, tab_name, tab, log->old_value_, log->rid_);
+    return true;
 }
 }
 
@@ -128,82 +66,128 @@ void RecoveryManager::analyze() {
     committed_txns_.clear();
     aborted_txns_.clear();
     active_txns_.clear();
+    next_lsn_ = 0;
+    next_txn_id_ = 0;
+    // CREATE metadata may survive even when its buffered BEGIN did not. Do not
+    // issue new DML LSNs below a persisted table-generation boundary.
+    for (const auto &entry : sm_manager_->fhs_) {
+        next_lsn_ = std::max(next_lsn_, sm_manager_->table_log_start(entry.first));
+    }
 
     int file_size = disk_manager_->get_file_size(LOG_FILE_NAME);
-    if (file_size <= 0) {
-        return;
-    }
+    if (file_size <= 0) return;
     std::vector<char> data(file_size);
     int read_size = disk_manager_->read_log(data.data(), file_size, 0);
-    int offset = 0;
-    while (offset + LOG_HEADER_SIZE <= read_size) {
-        LogType type = *reinterpret_cast<LogType *>(data.data() + offset + OFFSET_LOG_TYPE);
-        uint32_t len = *reinterpret_cast<uint32_t *>(data.data() + offset + OFFSET_LOG_TOT_LEN);
-        if (len < LOG_HEADER_SIZE || offset + static_cast<int>(len) > read_size) {
-            break;
+    size_t offset = 0;
+    while (offset + LOG_HEADER_SIZE <= static_cast<size_t>(read_size)) {
+        LogType type;
+        uint32_t len;
+        memcpy(&type, data.data() + offset + OFFSET_LOG_TYPE, sizeof(type));
+        memcpy(&len, data.data() + offset + OFFSET_LOG_TOT_LEN, sizeof(len));
+        if (len < LOG_HEADER_SIZE || len > static_cast<size_t>(read_size) - offset) break;
+        if (type < LogType::UPDATE || type > LogType::ABORT ||
+            !valid_payload(data.data() + offset, len, type)) {
+            throw InternalError("Invalid WAL record payload");
         }
 
         std::unique_ptr<LogRecord> log;
-        if (type == LogType::begin) {
-            log = std::make_unique<BeginLogRecord>();
-        } else if (type == LogType::commit) {
-            log = std::make_unique<CommitLogRecord>();
-        } else if (type == LogType::ABORT) {
-            log = std::make_unique<AbortLogRecord>();
-        } else if (type == LogType::INSERT) {
-            log = std::make_unique<InsertLogRecord>();
-        } else if (type == LogType::DELETE) {
-            log = std::make_unique<DeleteLogRecord>();
-        } else if (type == LogType::UPDATE) {
-            log = std::make_unique<UpdateLogRecord>();
-        } else {
-            break;
+        switch (type) {
+            case LogType::begin: log = std::make_unique<BeginLogRecord>(); break;
+            case LogType::commit: log = std::make_unique<CommitLogRecord>(); break;
+            case LogType::ABORT: log = std::make_unique<AbortLogRecord>(); break;
+            case LogType::INSERT: log = std::make_unique<InsertLogRecord>(); break;
+            case LogType::DELETE: log = std::make_unique<DeleteLogRecord>(); break;
+            case LogType::UPDATE: log = std::make_unique<UpdateLogRecord>(); break;
         }
         log->deserialize(data.data() + offset);
-        if (log->log_type_ == LogType::begin) {
+        if (log->lsn_ < 0 || log->log_tid_ < 0 ||
+            log->lsn_ == std::numeric_limits<lsn_t>::max() ||
+            log->log_tid_ == std::numeric_limits<txn_id_t>::max()) {
+            throw InternalError("Invalid or exhausted WAL identifier");
+        }
+        next_lsn_ = std::max(next_lsn_, log->lsn_ + 1);
+        next_txn_id_ = std::max(next_txn_id_, log->log_tid_ + 1);
+        if (type == LogType::begin) {
             active_txns_.insert(log->log_tid_);
-        } else if (log->log_type_ == LogType::commit) {
+        } else if (type == LogType::commit) {
             committed_txns_.insert(log->log_tid_);
             active_txns_.erase(log->log_tid_);
-        } else if (log->log_type_ == LogType::ABORT) {
+        } else if (type == LogType::ABORT) {
             aborted_txns_.insert(log->log_tid_);
             active_txns_.erase(log->log_tid_);
         }
         logs_.push_back(std::move(log));
         offset += len;
     }
+    // Future appends must not remain hidden behind an incomplete tail forever.
+    if (offset != static_cast<size_t>(read_size)) {
+        int fd = disk_manager_->GetLogFd();
+        if (ftruncate(fd, static_cast<off_t>(offset)) != 0 || fdatasync(fd) != 0) throw UnixError();
+    }
 }
 
 void RecoveryManager::redo() {
-    for (auto &log : logs_) {
-        if (!committed_txns_.count(log->log_tid_)) {
-            continue;
+    // Header and data pages can reach disk independently. Normalize free-space
+    // metadata before replay so a repeated delete cannot link a page to itself.
+    for (auto &entry : sm_manager_->fhs_) entry.second->rebuild_free_page_list();
+    // The complete WAL is retained, without page LSNs or checkpoints. Derive
+    // each touched slot from its earliest before image and committed changes.
+    // This remains idempotent if a loser used a slot later reused by a winner.
+    using Slot = std::tuple<std::string, int, int>;
+    std::map<Slot, const RmRecord *> final_images;
+    for (const auto &log : logs_) {
+        Change change;
+        if (!change_from(log.get(), change)) continue;
+        if (log->lsn_ < sm_manager_->table_log_start(change.table)) continue;
+        Slot slot{change.table, change.rid.page_no, change.rid.slot_no};
+        final_images.emplace(slot, change.before);
+        if (committed_txns_.count(log->log_tid_) && !aborted_txns_.count(log->log_tid_)) {
+            final_images[slot] = change.after;
         }
-        if (log->log_type_ == LogType::INSERT) {
-            redo_insert(sm_manager_, static_cast<InsertLogRecord *>(log.get()));
-        } else if (log->log_type_ == LogType::DELETE) {
-            redo_delete(sm_manager_, static_cast<DeleteLogRecord *>(log.get()));
-        } else if (log->log_type_ == LogType::UPDATE) {
-            redo_update(sm_manager_, static_cast<UpdateLogRecord *>(log.get()));
+    }
+    for (const auto &entry : final_images) {
+        const auto &[table, page, slot] = entry.first;
+        // A dropped table has no surviving heap; recreated names were filtered
+        // by their durable creation boundary above.
+        auto handle = sm_manager_->fhs_.find(table);
+        if (handle == sm_manager_->fhs_.end()) continue;
+        auto *fh = handle->second.get();
+        Rid rid{page, slot};
+        const RmRecord *image = entry.second;
+        if (image != nullptr && image->size != fh->get_file_hdr().record_size) {
+            throw InternalError("WAL record does not match the current table schema");
+        }
+        bool exists = fh->is_record(rid);
+        if (image == nullptr) {
+            if (exists) fh->delete_record(rid, nullptr);
+        } else if (exists) {
+            fh->update_record(rid, image->data, nullptr);
+        } else {
+            fh->insert_record(rid, image->data);
         }
     }
 }
 
 void RecoveryManager::undo() {
-    for (auto it = logs_.rbegin(); it != logs_.rend(); ++it) {
-        auto &log = *it;
-        if (!active_txns_.count(log->log_tid_)) {
-            continue;
-        }
-        if (log->log_type_ == LogType::INSERT) {
-            undo_insert(sm_manager_, static_cast<InsertLogRecord *>(log.get()));
-        } else if (log->log_type_ == LogType::DELETE) {
-            undo_delete(sm_manager_, static_cast<DeleteLogRecord *>(log.get()));
-        } else if (log->log_type_ == LogType::UPDATE) {
-            undo_update(sm_manager_, static_cast<UpdateLogRecord *>(log.get()));
-        }
-    }
+    // Loser/aborted changes were excluded above. Build indexes from the final
+    // heap so intermediate historical keys cannot cause duplicate conflicts.
     for (auto &entry : sm_manager_->fhs_) {
-        buffer_pool_manager_->flush_all_pages(entry.second->GetFd());
+        auto *fh = entry.second.get();
+        fh->rebuild_free_page_list();
+        for (auto &index : sm_manager_->db_.get_table(entry.first).indexes) {
+            auto *ix = sm_manager_->get_ix_manager();
+            std::string name = ix->get_index_name(entry.first, index.cols);
+            auto &ih = sm_manager_->ihs_[name];
+            ih.reset();
+            ih = ix->open_index(entry.first, index.cols);
+            for (RmScan scan(fh); !scan.is_end(); scan.next()) {
+                Rid rid = scan.rid();
+                auto record = fh->get_record(rid, nullptr);
+                auto key = make_index_key(index, record->data);
+                ih->insert_entry(key.get(), rid, nullptr);
+            }
+        }
+        buffer_pool_manager_->flush_all_pages(fh->GetFd());
     }
+    logs_.clear();
 }

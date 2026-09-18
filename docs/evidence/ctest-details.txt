@@ -1,0 +1,462 @@
+Start testing: Sep 19 00:33 CST
+----------------------------------------------------------
+1/7 Testing: unit_test
+1/7 Test: unit_test
+Command: "/mnt/e/Code/rmdb-audit-20260918/build/bin/unit_test"
+Directory: /mnt/e/Code/rmdb-audit-20260918/build/src
+"unit_test" start time: Sep 19 00:33 CST
+Output:
+----------------------------------------------------------
+Running main() from /mnt/e/Code/rmdb-audit-20260918/deps/googletest/googletest/src/gtest_main.cc
+[==========] Running 6 tests from 6 test suites.
+[----------] Global test environment set-up.
+[----------] 1 test from LRUReplacerTest
+[ RUN      ] LRUReplacerTest.SampleTest
+[       OK ] LRUReplacerTest.SampleTest (0 ms)
+[----------] 1 test from LRUReplacerTest (0 ms total)
+
+[----------] 1 test from BufferPoolManagerTest
+[ RUN      ] BufferPoolManagerTest.SampleTest
+[       OK ] BufferPoolManagerTest.SampleTest (7 ms)
+[----------] 1 test from BufferPoolManagerTest (7 ms total)
+
+[----------] 1 test from BufferPoolManagerConcurrencyTest
+[ RUN      ] BufferPoolManagerConcurrencyTest.ConcurrencyTest
+[       OK ] BufferPoolManagerConcurrencyTest.ConcurrencyTest (459 ms)
+[----------] 1 test from BufferPoolManagerConcurrencyTest (459 ms total)
+
+[----------] 1 test from StorageTest
+[ RUN      ] StorageTest.SimpleTest
+[       OK ] StorageTest.SimpleTest (3971 ms)
+[----------] 1 test from StorageTest (3971 ms total)
+
+[----------] 1 test from RecordManagerTest
+[ RUN      ] RecordManagerTest.SimpleTest
+insert 460
+delete 284
+update 256
+[       OK ] RecordManagerTest.SimpleTest (475 ms)
+[----------] 1 test from RecordManagerTest (475 ms total)
+
+[----------] 1 test from IndexScanTest
+[ RUN      ] IndexScanTest.RangeScanAdvancesAcrossEntries
+[       OK ] IndexScanTest.RangeScanAdvancesAcrossEntries (41 ms)
+[----------] 1 test from IndexScanTest (41 ms total)
+
+[----------] Global test environment tear-down
+[==========] 6 tests from 6 test suites ran. (4956 ms total)
+[  PASSED  ] 6 tests.
+<end of output>
+Test time =   4.98 sec
+----------------------------------------------------------
+Test Passed.
+"unit_test" end time: Sep 19 00:33 CST
+"unit_test" time elapsed: 00:00:04
+----------------------------------------------------------
+
+2/7 Testing: storage_regression
+2/7 Test: storage_regression
+Command: "/mnt/e/Code/rmdb-audit-20260918/build/bin/storage_regression"
+Directory: /mnt/e/Code/rmdb-audit-20260918/build/src
+"storage_regression" start time: Sep 19 00:33 CST
+Output:
+----------------------------------------------------------
+Running main() from /mnt/e/Code/rmdb-audit-20260918/deps/googletest/googletest/src/gtest_main.cc
+[==========] Running 16 tests from 2 test suites.
+[----------] Global test environment set-up.
+[----------] 14 tests from StorageRegression
+[ RUN      ] StorageRegression.ExistenceChecksReleaseTheBufferFrame
+[       OK ] StorageRegression.ExistenceChecksReleaseTheBufferFrame (0 ms)
+[ RUN      ] StorageRegression.ExistenceChecksRejectOutOfRangeRids
+[       OK ] StorageRegression.ExistenceChecksRejectOutOfRangeRids (0 ms)
+[ RUN      ] StorageRegression.ExplicitInsertUnlinksAFullPageFromInsideTheFreeList
+[       OK ] StorageRegression.ExplicitInsertUnlinksAFullPageFromInsideTheFreeList (0 ms)
+[ RUN      ] StorageRegression.RecoveryInsertProvisionsMissingPages
+[       OK ] StorageRegression.RecoveryInsertProvisionsMissingPages (0 ms)
+[ RUN      ] StorageRegression.ClosingARecordFileDoesNotPolluteAReusedDescriptor
+[       OK ] StorageRegression.ClosingARecordFileDoesNotPolluteAReusedDescriptor (0 ms)
+[ RUN      ] StorageRegression.ClosingAnIndexDoesNotPolluteAReusedDescriptor
+[       OK ] StorageRegression.ClosingAnIndexDoesNotPolluteAReusedDescriptor (0 ms)
+[ RUN      ] StorageRegression.ConcurrentPageIoUsesIndependentOffsets
+[       OK ] StorageRegression.ConcurrentPageIoUsesIndependentOffsets (0 ms)
+[ RUN      ] StorageRegression.NewPageMetadataSurvivesAnUnflushedProcessExit
+[       OK ] StorageRegression.NewPageMetadataSurvivesAnUnflushedProcessExit (1 ms)
+[ RUN      ] StorageRegression.RecoveryRepairsAFreeListPublishedBeforeItsDeletePage
+[       OK ] StorageRegression.RecoveryRepairsAFreeListPublishedBeforeItsDeletePage (0 ms)
+[ RUN      ] StorageRegression.RecoveryFindsAFreePageOmittedByAnUnflushedInsert
+[       OK ] StorageRegression.RecoveryFindsAFreePageOmittedByAnUnflushedInsert (0 ms)
+[ RUN      ] StorageRegression.InsertCallbackRunsBeforeTheRecordBecomesVisible
+[       OK ] StorageRegression.InsertCallbackRunsBeforeTheRecordBecomesVisible (0 ms)
+[ RUN      ] StorageRegression.FailedInsertCallbackLeavesNoRecordAndReleasesTheFrame
+[       OK ] StorageRegression.FailedInsertCallbackLeavesNoRecordAndReleasesTheFrame (0 ms)
+[ RUN      ] StorageRegression.LogAppendRetriesInterruptedAndShortWrites
+[       OK ] StorageRegression.LogAppendRetriesInterruptedAndShortWrites (4 ms)
+[ RUN      ] StorageRegression.LogAppendSynchronizesBeforeReturning
+[       OK ] StorageRegression.LogAppendSynchronizesBeforeReturning (4 ms)
+[----------] 14 tests from StorageRegression (13 ms total)
+
+[----------] 2 tests from RmRecordRegression
+[ RUN      ] RmRecordRegression.SelfAssignmentPreservesData
+[       OK ] RmRecordRegression.SelfAssignmentPreservesData (0 ms)
+[ RUN      ] RmRecordRegression.RepeatedAssignmentAndDeserializationOwnTheirData
+[       OK ] RmRecordRegression.RepeatedAssignmentAndDeserializationOwnTheirData (0 ms)
+[----------] 2 tests from RmRecordRegression (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 16 tests from 2 test suites ran. (13 ms total)
+[  PASSED  ] 16 tests.
+<end of output>
+Test time =   0.03 sec
+----------------------------------------------------------
+Test Passed.
+"storage_regression" end time: Sep 19 00:33 CST
+"storage_regression" time elapsed: 00:00:00
+----------------------------------------------------------
+
+3/7 Testing: sql_regression
+3/7 Test: sql_regression
+Command: "/usr/bin/python3" "/mnt/e/Code/rmdb-audit-20260918/tests/test_sql_regressions.py" "/mnt/e/Code/rmdb-audit-20260918/build/bin/rmdb"
+Directory: /mnt/e/Code/rmdb-audit-20260918/build/src
+"sql_regression" start time: Sep 19 00:33 CST
+Output:
+----------------------------------------------------------
+test_bigint_datetime_and_validation (__main__.SqlRegressionTest.test_bigint_datetime_and_validation) ... ok
+test_ddl_cannot_destroy_another_transactions_table (__main__.SqlRegressionTest.test_ddl_cannot_destroy_another_transactions_table) ... ok
+test_ddl_in_explicit_transaction_is_rejected_without_losing_rows (__main__.SqlRegressionTest.test_ddl_in_explicit_transaction_is_rejected_without_losing_rows) ... ok
+test_drop_and_recreate_table_survives_restart (__main__.SqlRegressionTest.test_drop_and_recreate_table_survives_restart) ... ok
+test_join_sort_limit_aggregate_and_delete (__main__.SqlRegressionTest.test_join_sort_limit_aggregate_and_delete) ... ok
+test_multirow_unique_failure_rolls_back_earlier_rows (__main__.SqlRegressionTest.test_multirow_unique_failure_rolls_back_earlier_rows) ... ok
+test_no_wait_locks_allow_readers_and_reject_writer (__main__.SqlRegressionTest.test_no_wait_locks_allow_readers_and_reject_writer) ... ok
+test_out_of_range_limit_and_char_length_leave_server_usable (__main__.SqlRegressionTest.test_out_of_range_limit_and_char_length_leave_server_usable) ... ok
+test_second_unique_index_failure_preserves_first_index (__main__.SqlRegressionTest.test_second_unique_index_failure_preserves_first_index) ... ok
+test_show_index_reaches_client (__main__.SqlRegressionTest.test_show_index_reaches_client) ... ok
+test_unique_key_shift_and_rollback (__main__.SqlRegressionTest.test_unique_key_shift_and_rollback) ... ok
+test_update_arithmetic_overflow_is_atomic (__main__.SqlRegressionTest.test_update_arithmetic_overflow_is_atomic) ... ok
+test_update_arithmetic_uses_original_row_values (__main__.SqlRegressionTest.test_update_arithmetic_uses_original_row_values) ... ok
+
+----------------------------------------------------------------------
+Ran 13 tests in 2.187s
+
+OK
+<end of output>
+Test time =   2.25 sec
+----------------------------------------------------------
+Test Passed.
+"sql_regression" end time: Sep 19 00:33 CST
+"sql_regression" time elapsed: 00:00:02
+----------------------------------------------------------
+
+4/7 Testing: recovery_regression
+4/7 Test: recovery_regression
+Command: "/usr/bin/python3" "/mnt/e/Code/rmdb-audit-20260918/tests/test_recovery.py" "/mnt/e/Code/rmdb-audit-20260918/build/bin/rmdb"
+Directory: /mnt/e/Code/rmdb-audit-20260918/build/src
+"recovery_regression" start time: Sep 19 00:33 CST
+Output:
+----------------------------------------------------------
+..........
+----------------------------------------------------------------------
+Ran 10 tests in 2.326s
+
+OK
+<end of output>
+Test time =   2.40 sec
+----------------------------------------------------------
+Test Passed.
+"recovery_regression" end time: Sep 19 00:33 CST
+"recovery_regression" time elapsed: 00:00:02
+----------------------------------------------------------
+
+5/7 Testing: query_regression
+5/7 Test: query_regression
+Command: "/usr/bin/python3" "/mnt/e/Code/rmdb-audit-20260918/tests/test_query_regressions.py" "/mnt/e/Code/rmdb-audit-20260918/build/bin/rmdb"
+Directory: /mnt/e/Code/rmdb-audit-20260918/build/src
+"query_regression" start time: Sep 19 00:33 CST
+Output:
+----------------------------------------------------------
+test_aggregate_limit_after_where_and_order (__main__.QueryRegressionTest.test_aggregate_limit_after_where_and_order) ... ok
+test_composite_index_prefix_and_range_bounds (__main__.QueryRegressionTest.test_composite_index_prefix_and_range_bounds) ... ok
+test_composite_index_string_float_boundaries (__main__.QueryRegressionTest.test_composite_index_string_float_boundaries) ... ok
+test_empty_aggregate_and_plain_select_limits (__main__.QueryRegressionTest.test_empty_aggregate_and_plain_select_limits) ... ok
+test_limit_one_keeps_all_aggregate_input (__main__.QueryRegressionTest.test_limit_one_keeps_all_aggregate_input) ... ok
+test_limit_zero_suppresses_aggregate_result (__main__.QueryRegressionTest.test_limit_zero_suppresses_aggregate_result) ... ok
+test_single_index_repeated_and_contradictory_bounds (__main__.QueryRegressionTest.test_single_index_repeated_and_contradictory_bounds) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 1.359s
+
+OK
+<end of output>
+Test time =   1.43 sec
+----------------------------------------------------------
+Test Passed.
+"query_regression" end time: Sep 19 00:33 CST
+"query_regression" time elapsed: 00:00:01
+----------------------------------------------------------
+
+6/7 Testing: server_regression
+6/7 Test: server_regression
+Command: "/usr/bin/python3" "/mnt/e/Code/rmdb-audit-20260918/tests/test_server.py" "/mnt/e/Code/rmdb-audit-20260918/build/bin/rmdb"
+Directory: /mnt/e/Code/rmdb-audit-20260918/build/src
+"server_regression" start time: Sep 19 00:33 CST
+Output:
+----------------------------------------------------------
+test_coalesced_requests_each_receive_a_response (__main__.ServerTest.test_coalesced_requests_each_receive_a_response) ... ok
+test_fragmented_request_waits_for_terminator (__main__.ServerTest.test_fragmented_request_waits_for_terminator) ... ok
+test_graceful_shutdown_aborts_active_transaction_before_exit (__main__.ServerTest.test_graceful_shutdown_aborts_active_transaction_before_exit) ... ok
+test_select_lock_conflict_has_a_terminated_abort_response (__main__.ServerTest.test_select_lock_conflict_has_a_terminated_abort_response) ... ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.677s
+
+OK
+<end of output>
+Test time =   0.75 sec
+----------------------------------------------------------
+Test Passed.
+"server_regression" end time: Sep 19 00:33 CST
+"server_regression" time elapsed: 00:00:00
+----------------------------------------------------------
+
+7/7 Testing: test_parser
+7/7 Test: test_parser
+Command: "/mnt/e/Code/rmdb-audit-20260918/build/bin/test_parser"
+Directory: /mnt/e/Code/rmdb-audit-20260918/build/bin
+"test_parser" start time: Sep 19 00:33 CST
+Output:
+----------------------------------------------------------
+show tables;
+SHOW_TABLES
+
+desc tb;
+DESC_TABLE
+  tb
+
+create table tb (a int, b float, c char(4));
+CREATE_TABLE
+  tb
+  LIST
+    COL_DEF
+      a
+      TYPE_LEN
+        INT
+        4
+    COL_DEF
+      b
+      TYPE_LEN
+        FLOAT
+        4
+    COL_DEF
+      c
+      TYPE_LEN
+        STRING
+        4
+
+drop table tb;
+DROP_TABLE
+  tb
+
+create index tb(a);
+CREATE_INDEX
+  tb
+  a
+
+create index tb(a, b, c);
+CREATE_INDEX
+  tb
+  a
+  b
+  c
+
+drop index tb(a, b, c);
+DROP_INDEX
+  tb
+  a
+  b
+  c
+
+drop index tb(b);
+DROP_INDEX
+  tb
+  b
+
+insert into tb values (1, 3.14, 'pi');
+INSERT
+  tb
+  LIST
+    INT_LIT
+      1
+    FLOAT_LIT
+      3.14
+    STRING_LIT
+      pi
+
+delete from tb where a = 1;
+DELETE
+  tb
+  LIST
+    BINARY_EXPR
+      COL
+
+        a
+      ==
+      INT_LIT
+        1
+
+update tb set a = 1, b = 2.2, c = 'xyz' where x = 2 and y < 1.1 and z > 'abc';
+UPDATE
+  tb
+  LIST
+    SET_CLAUSE
+      a
+      INT_LIT
+        1
+    SET_CLAUSE
+      b
+      FLOAT_LIT
+        2.2
+    SET_CLAUSE
+      c
+      STRING_LIT
+        xyz
+  LIST
+    BINARY_EXPR
+      COL
+
+        x
+      ==
+      INT_LIT
+        2
+    BINARY_EXPR
+      COL
+
+        y
+      <
+      FLOAT_LIT
+        1.1
+    BINARY_EXPR
+      COL
+
+        z
+      >
+      STRING_LIT
+        abc
+
+select * from tb;
+SELECT
+  LIST
+  LIST
+    tb
+  LIST
+
+select * from tb where x <> 2 and y >= 3. and z <= '123' and b < tb.a;
+SELECT
+  LIST
+  LIST
+    tb
+  LIST
+    BINARY_EXPR
+      COL
+
+        x
+      !=
+      INT_LIT
+        2
+    BINARY_EXPR
+      COL
+
+        y
+      >=
+      FLOAT_LIT
+        3
+    BINARY_EXPR
+      COL
+
+        z
+      <=
+      STRING_LIT
+        123
+    BINARY_EXPR
+      COL
+
+        b
+      <
+      COL
+        tb
+        a
+
+select x.a, y.b from x, y where x.a = y.b and c = d;
+SELECT
+  LIST
+    COL
+      x
+      a
+    COL
+      y
+      b
+  LIST
+    x
+    y
+  LIST
+    BINARY_EXPR
+      COL
+        x
+        a
+      ==
+      COL
+        y
+        b
+    BINARY_EXPR
+      COL
+
+        c
+      ==
+      COL
+
+        d
+
+select x.a, y.b from x join y where x.a = y.b and c = d;
+SELECT
+  LIST
+    COL
+      x
+      a
+    COL
+      y
+      b
+  LIST
+    x
+    y
+  LIST
+    BINARY_EXPR
+      COL
+        x
+        a
+      ==
+      COL
+        y
+        b
+    BINARY_EXPR
+      COL
+
+        c
+      ==
+      COL
+
+        d
+
+exit;
+exit/EOF
+help;
+HELP
+
+
+exit/EOF
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"test_parser" end time: Sep 19 00:33 CST
+"test_parser" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: Sep 19 00:33 CST

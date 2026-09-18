@@ -1,4 +1,6 @@
 build/
+build-*/
+__pycache__/
 BufferPoolManagerTest_db/
 windows-app-timer/
 *.db

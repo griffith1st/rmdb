@@ -135,3 +135,24 @@ void BufferPoolManager::flush_all_pages(int fd) {
         }
     }
 }
+
+void BufferPoolManager::close_file(int fd) {
+    std::scoped_lock lock{latch_};
+    for (size_t i = 0; i < pool_size_; ++i) {
+        const Page &page = pages_[i];
+        if (page.id_.fd == fd && page.id_.page_no != INVALID_PAGE_ID && page.pin_count_ > 0) {
+            throw InternalError("Cannot close a file with pinned buffer pages");
+        }
+    }
+    for (size_t i = 0; i < pool_size_; ++i) {
+        Page &page = pages_[i];
+        if (page.id_.fd != fd || page.id_.page_no == INVALID_PAGE_ID) continue;
+        if (page.is_dirty_) disk_manager_->write_page(fd, page.id_.page_no, page.data_, PAGE_SIZE);
+        page_table_.erase(page.id_);
+        replacer_->pin(static_cast<frame_id_t>(i));
+        page.reset_memory();
+        page.id_ = PageId{fd, INVALID_PAGE_ID};
+        page.is_dirty_ = false;
+        free_list_.push_back(static_cast<frame_id_t>(i));
+    }
+}

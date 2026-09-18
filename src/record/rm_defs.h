@@ -35,8 +35,8 @@ struct RmPageHdr {
 
 /* 表中的记录 */
 struct RmRecord {
-    char* data;  // 记录的数据
-    int size;    // 记录的大小
+    char* data = nullptr;  // 记录的数据
+    int size = 0;    // 记录的大小
     bool allocated_ = false;    // 是否已经为数据分配空间
 
     RmRecord() = default;
@@ -49,9 +49,12 @@ struct RmRecord {
     };
 
     RmRecord &operator=(const RmRecord& other) {
+        if (this == &other) return *this;
+        char *replacement = new char[other.size];
+        if (other.size > 0) memcpy(replacement, other.data, other.size);
+        if (allocated_) delete[] data;
         size = other.size;
-        data = new char[size];
-        memcpy(data, other.data, size);
+        data = replacement;
         allocated_ = true;
         return *this;
     };
@@ -80,6 +83,7 @@ struct RmRecord {
         }
         data = new char[size];
         memcpy(data, data_ + sizeof(int), size);
+        allocated_ = true;
     }
 
     ~RmRecord() {

@@ -1,0 +1,76 @@
+test_multirow_unique_failure_rolls_back_earlier_rows (__main__.SqlRegressionTest.test_multirow_unique_failure_rolls_back_earlier_rows) ... FAIL
+test_second_unique_index_failure_preserves_first_index (__main__.SqlRegressionTest.test_second_unique_index_failure_preserves_first_index) ... FAIL
+test_update_arithmetic_overflow_is_atomic (__main__.SqlRegressionTest.test_update_arithmetic_overflow_is_atomic) ... FAIL
+test_update_arithmetic_uses_original_row_values (__main__.SqlRegressionTest.test_update_arithmetic_uses_original_row_values) ... FAIL
+
+======================================================================
+FAIL: test_multirow_unique_failure_rolls_back_earlier_rows (__main__.SqlRegressionTest.test_multirow_unique_failure_rolls_back_earlier_rows)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/e/Code/rmdb-audit-20260918/tests/test_sql_regressions.py", line 39, in test_multirow_unique_failure_rolls_back_earlier_rows
+    self.assertEqual(self.rows("select * from t order by id;"), [("1", "10"), ("2", "20")])
+AssertionError: Lists differ: [('1', '30'), ('2', '20')] != [('1', '10'), ('2', '20')]
+
+First differing element 0:
+('1', '30')
+('1', '10')
+
+- [('1', '30'), ('2', '20')]
+?         ^
+
++ [('1', '10'), ('2', '20')]
+?         ^
+
+
+======================================================================
+FAIL: test_second_unique_index_failure_preserves_first_index (__main__.SqlRegressionTest.test_second_unique_index_failure_preserves_first_index)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/e/Code/rmdb-audit-20260918/tests/test_sql_regressions.py", line 29, in test_second_unique_index_failure_preserves_first_index
+    self.assertEqual(self.rows("select * from t where id=1;"), [("1", "10")])
+AssertionError: Lists differ: [] != [('1', '10')]
+
+Second list contains 1 additional elements.
+First extra element 0:
+('1', '10')
+
+- []
++ [('1', '10')]
+
+======================================================================
+FAIL: test_update_arithmetic_overflow_is_atomic (__main__.SqlRegressionTest.test_update_arithmetic_overflow_is_atomic)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/e/Code/rmdb-audit-20260918/tests/test_sql_regressions.py", line 52, in test_update_arithmetic_overflow_is_atomic
+    self.q("update t set score=score+1;", error=True)
+  File "/mnt/e/Code/rmdb-audit-20260918/tests/test_sql_regressions.py", line 17, in q
+    return self.server.query(self.client, sql, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/e/Code/rmdb-audit-20260918/tests/sql_harness.py", line 55, in query
+    raise AssertionError(f"Expected SQL failure: {sql}\n{text}")
+AssertionError: Expected SQL failure: update t set score=score+1;
+
+
+======================================================================
+FAIL: test_update_arithmetic_uses_original_row_values (__main__.SqlRegressionTest.test_update_arithmetic_uses_original_row_values)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/e/Code/rmdb-audit-20260918/tests/test_sql_regressions.py", line 45, in test_update_arithmetic_uses_original_row_values
+    self.assertEqual(self.rows("select score,other,big,f from t;"),
+AssertionError: Lists differ: [('85', '3', '2147483648', '1.500000')] != [('90', '83', '2147483651', '1.000000')]
+
+First differing element 0:
+('85', '3', '2147483648', '1.500000')
+('90', '83', '2147483651', '1.000000')
+
+- [('85', '3', '2147483648', '1.500000')]
+?    ^^                 ^^      ^
+
++ [('90', '83', '2147483651', '1.000000')]
+?    ^^    +             ^^      ^
+
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.430s
+
+FAILED (failures=4)

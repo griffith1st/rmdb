@@ -37,11 +37,6 @@ class DeleteExecutor : public AbstractExecutor {
         }
         for (auto &rid : rids_) {
             auto rec = fh_->get_record(rid, context_);
-            for (auto &index : tab_.indexes) {
-                auto ih = sm_manager_->ihs_.at(sm_manager_->get_ix_manager()->get_index_name(tab_name_, index.cols)).get();
-                auto key = make_index_key(index, rec->data);
-                ih->delete_entry(key.get(), context_->txn_);
-            }
             if (context_ != nullptr && context_->txn_ != nullptr && context_->log_mgr_ != nullptr) {
                 DeleteLogRecord log_record(context_->txn_->get_transaction_id(), *rec, rid, tab_name_);
                 log_record.prev_lsn_ = context_->txn_->get_prev_lsn();
@@ -49,10 +44,15 @@ class DeleteExecutor : public AbstractExecutor {
                 context_->txn_->set_prev_lsn(lsn);
                 context_->log_mgr_->flush_log_to_disk();
             }
-            fh_->delete_record(rid, context_);
             if (context_ != nullptr && context_->txn_ != nullptr) {
                 context_->txn_->append_write_record(new WriteRecord(WType::DELETE_TUPLE, tab_name_, rid, *rec));
             }
+            for (auto &index : tab_.indexes) {
+                auto ih = sm_manager_->ihs_.at(sm_manager_->get_ix_manager()->get_index_name(tab_name_, index.cols)).get();
+                auto key = make_index_key(index, rec->data);
+                ih->delete_entry(key.get(), context_ ? context_->txn_ : nullptr);
+            }
+            fh_->delete_record(rid, context_);
         }
         return nullptr;
     }

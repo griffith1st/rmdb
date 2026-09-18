@@ -14,6 +14,7 @@ See the Mulan PSL v2 for more details. */
 #include <unistd.h>
 
 #include <fstream>
+#include <filesystem>
 
 #include "index/ix.h"
 #include "execution/index_utils.h"
@@ -22,6 +23,19 @@ See the Mulan PSL v2 for more details. */
 #include "record_printer.h"
 
 namespace {
+void require_autocommit_ddl(Context *context) {
+    if (context && context->txn_ && context->txn_->get_txn_mode()) {
+        throw InternalError("DDL is only supported outside an explicit transaction");
+    }
+}
+
+void lock_table_for_ddl(Context *context, RmFileHandle *file) {
+    require_autocommit_ddl(context);
+    if (context && context->txn_ && context->lock_mgr_) {
+        context->lock_mgr_->lock_exclusive_on_table(context->txn_, file->GetFd());
+    }
+}
+
 void rebuild_index_entries(TabMeta &tab, RmFileHandle *fh, IxIndexHandle *ih,
                            const IndexMeta &index, Context *context) {
     for (RmScan scan(fh); !scan.is_end(); scan.next()) {
@@ -114,12 +128,19 @@ void SmManager::open_db(const std::string& db_name) {
 
     fhs_.clear();
     ihs_.clear();
+    table_log_starts_.clear();
     for (auto &entry : db_.tabs_) {
         fhs_.emplace(entry.first, rm_manager_->open_file(entry.first));
+        std::ifstream epoch(entry.first + ".epoch");
+        lsn_t start = 0;
+        if (epoch.is_open() && (!(epoch >> start) || start < 0)) {
+            throw InternalError("Invalid table WAL generation");
+        }
+        table_log_starts_[entry.first] = start;
         for (auto &index : entry.second.indexes) {
             std::string index_name = ix_manager_->get_index_name(entry.first, index.cols);
             ihs_.emplace(index_name, ix_manager_->open_index(entry.first, index.cols));
-            rebuild_index_entries(entry.second, fhs_.at(entry.first).get(), ihs_.at(index_name).get(), index, nullptr);
+            // Recovery rebuilds entries only after restoring the final heap.
         }
     }
     if (!disk_manager_->is_file(LOG_FILE_NAME)) {
@@ -132,9 +153,21 @@ void SmManager::open_db(const std::string& db_name) {
  * @description: 把数据库相关的元数据刷入磁盘中
  */
 void SmManager::flush_meta() {
-    // 默认清空文件
-    std::ofstream ofs(DB_META_NAME);
+    const std::string temporary = DB_META_NAME + ".tmp";
+    std::ofstream ofs(temporary);
     ofs << db_;
+    ofs.close();
+    if (!ofs) throw InternalError("Cannot write database metadata");
+    int fd = open(temporary.c_str(), O_RDONLY);
+    if (fd < 0) throw UnixError();
+    int synced = fsync(fd);
+    close(fd);
+    if (synced < 0 || rename(temporary.c_str(), DB_META_NAME.c_str()) < 0) throw UnixError();
+    int directory = open(".", O_RDONLY | O_DIRECTORY);
+    if (directory < 0) throw UnixError();
+    synced = fsync(directory);
+    close(directory);
+    if (synced < 0) throw UnixError();
 }
 
 /**
@@ -205,23 +238,34 @@ void SmManager::desc_table(const std::string& tab_name, Context* context) {
 }
 
 void SmManager::show_index(const std::string& tab_name, Context* context) {
-    (void)context;
     if (!db_.is_table(tab_name)) {
         throw TableNotFoundError(tab_name);
     }
     TabMeta &tab = db_.get_table(tab_name);
     std::fstream outfile;
     outfile.open("output.txt", std::ios::out | std::ios::app);
+    RecordPrinter printer(3);
+    if (context) {
+        printer.print_separator(context);
+        printer.print_record({"Table", "Type", "Columns"}, context);
+        printer.print_separator(context);
+    }
     for (auto &index : tab.indexes) {
+        std::string columns = "(";
         outfile << "| " << tab_name << " | unique | (";
         for (int i = 0; i < index.col_num; ++i) {
             if (i > 0) {
                 outfile << ",";
+                columns += ",";
             }
             outfile << index.cols[i].name;
+            columns += index.cols[i].name;
         }
         outfile << ") |\n";
+        columns += ")";
+        if (context) printer.print_record({tab_name, "unique", columns}, context);
     }
+    if (context) printer.print_separator(context);
     outfile.close();
 }
 
@@ -232,6 +276,7 @@ void SmManager::show_index(const std::string& tab_name, Context* context) {
  * @param {Context*} context 
  */
 void SmManager::create_table(const std::string& tab_name, const std::vector<ColDef>& col_defs, Context* context) {
+    require_autocommit_ddl(context);
     if (db_.is_table(tab_name)) {
         throw TableExistsError(tab_name);
     }
@@ -252,6 +297,20 @@ void SmManager::create_table(const std::string& tab_name, const std::vector<ColD
     // Create & open record file
     int record_size = curr_offset;  // record_size就是col meta所占的大小（表的元数据也是以记录的形式进行存储的）
     rm_manager_->create_file(tab_name, record_size);
+    // A table name can be dropped and reused. Historical WAL must not resurrect
+    // rows belonging to its previous incarnation. Older databases default to 0.
+    lsn_t start = context && context->txn_ ? context->txn_->get_prev_lsn() + 1 : 0;
+    std::string epoch_name = tab_name + ".epoch";
+    std::ofstream epoch(epoch_name, std::ios::trunc);
+    epoch << start << '\n';
+    epoch.close();
+    if (!epoch) throw InternalError("Cannot write table WAL generation");
+    int epoch_fd = open(epoch_name.c_str(), O_RDONLY);
+    if (epoch_fd < 0) throw UnixError();
+    int synced = fsync(epoch_fd);
+    close(epoch_fd);
+    if (synced < 0) throw UnixError();
+    table_log_starts_[tab_name] = start;
     db_.tabs_[tab_name] = tab;
     // fhs_[tab_name] = rm_manager_->open_file(tab_name);
     fhs_.emplace(tab_name, rm_manager_->open_file(tab_name));
@@ -269,6 +328,7 @@ void SmManager::drop_table(const std::string& tab_name, Context* context) {
     if (!db_.is_table(tab_name)) {
         throw TableNotFoundError(tab_name);
     }
+    lock_table_for_ddl(context, fhs_.at(tab_name).get());
 
     TabMeta tab = db_.get_table(tab_name);
     for (auto &index : tab.indexes) {
@@ -285,6 +345,8 @@ void SmManager::drop_table(const std::string& tab_name, Context* context) {
         fhs_.erase(tab_name);
     }
     rm_manager_->destroy_file(tab_name);
+    std::filesystem::remove(tab_name + ".epoch");
+    table_log_starts_.erase(tab_name);
     db_.tabs_.erase(tab_name);
     flush_meta();
 }
@@ -299,6 +361,7 @@ void SmManager::create_index(const std::string& tab_name, const std::vector<std:
     if (!db_.is_table(tab_name)) {
         throw TableNotFoundError(tab_name);
     }
+    lock_table_for_ddl(context, fhs_.at(tab_name).get());
     TabMeta &tab = db_.get_table(tab_name);
     if (tab.is_index(col_names)) {
         throw IndexExistsError(tab_name, col_names);
@@ -344,6 +407,7 @@ void SmManager::drop_index(const std::string& tab_name, const std::vector<std::s
     if (!db_.is_table(tab_name)) {
         throw TableNotFoundError(tab_name);
     }
+    lock_table_for_ddl(context, fhs_.at(tab_name).get());
     TabMeta &tab = db_.get_table(tab_name);
     auto index = tab.get_index_meta(col_names);
     std::vector<ColMeta> cols = index->cols;

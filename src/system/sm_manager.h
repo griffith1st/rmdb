@@ -35,6 +35,7 @@ class SmManager {
     BufferPoolManager* buffer_pool_manager_;
     RmManager* rm_manager_;
     IxManager* ix_manager_;
+    std::map<std::string, lsn_t> table_log_starts_;
 
    public:
     SmManager(DiskManager* disk_manager, BufferPoolManager* buffer_pool_manager, RmManager* rm_manager,
@@ -51,6 +52,11 @@ class SmManager {
     RmManager* get_rm_manager() { return rm_manager_; }  
 
     IxManager* get_ix_manager() { return ix_manager_; }  
+
+    lsn_t table_log_start(const std::string &table) const {
+        auto it = table_log_starts_.find(table);
+        return it == table_log_starts_.end() ? 0 : it->second;
+    }
 
     bool is_dir(const std::string& db_name);
 

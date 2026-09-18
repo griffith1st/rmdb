@@ -1,0 +1,36 @@
+RMDB final local validation
+UTC: 2026-09-18T16:33:40.155128+00:00
+Base commit: 7a9fe1d4fc24c0bc6bbc7b4db067ce3ed19923bc
+Revision: the Git commit containing this report (source/worktree before commit)
+Build: cmake --build build -j4, exit 0
+Client: cmake --build build-client -j2, exit 0
+Server SHA256: 7f301b0c8c14033469a5d53544c47aebffbd96308972e11c9bad3df569f32687
+Command: ctest --test-dir build --output-on-failure
+Exit: 0
+Linux 5.15.167.4-microsoft-standard-WSL2
+g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+cmake version 3.28.3
+flex 2.6.4
+bison (GNU Bison) 3.8.2
+Python 3.12.3
+
+Internal ctest changing into directory: /mnt/e/Code/rmdb-audit-20260918/build
+Test project /mnt/e/Code/rmdb-audit-20260918/build
+    Start 1: unit_test
+1/7 Test #1: unit_test ........................   Passed    4.98 sec
+    Start 2: storage_regression
+2/7 Test #2: storage_regression ...............   Passed    0.03 sec
+    Start 3: sql_regression
+3/7 Test #3: sql_regression ...................   Passed    2.25 sec
+    Start 4: recovery_regression
+4/7 Test #4: recovery_regression ..............   Passed    2.40 sec
+    Start 5: query_regression
+5/7 Test #5: query_regression .................   Passed    1.43 sec
+    Start 6: server_regression
+6/7 Test #6: server_regression ................   Passed    0.75 sec
+    Start 7: test_parser
+7/7 Test #7: test_parser ......................   Passed    0.01 sec
+
+100% tests passed, 0 tests failed out of 7
+
+Total Test time (real) =  11.95 sec

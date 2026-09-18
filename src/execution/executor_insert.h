@@ -67,27 +67,31 @@ class InsertExecutor : public AbstractExecutor {
             auto ih = sm_manager_->ihs_.at(sm_manager_->get_ix_manager()->get_index_name(tab_name_, index.cols)).get();
             auto key = make_index_key(index, rec.data);
             std::vector<Rid> existing;
-            if (ih->get_value(key.get(), &existing, context_->txn_)) {
+            if (ih->get_value(key.get(), &existing, context_ ? context_->txn_ : nullptr)) {
                 throw InternalError("Duplicate index key");
             }
         }
 
-        rid_ = fh_->insert_record(rec.data, context_);
-        if (context_ != nullptr && context_->txn_ != nullptr && context_->log_mgr_ != nullptr) {
-            InsertLogRecord log_record(context_->txn_->get_transaction_id(), rec, rid_, tab_name_);
-            log_record.prev_lsn_ = context_->txn_->get_prev_lsn();
-            lsn_t lsn = context_->log_mgr_->add_log_to_buffer(&log_record);
-            context_->txn_->set_prev_lsn(lsn);
-            context_->log_mgr_->flush_log_to_disk();
-        }
+        rid_ = fh_->insert_record(rec.data, context_, [&](const Rid &reserved) {
+            // The chosen slot is pinned but still empty. Make WAL durable before
+            // changing bytes or the bitmap, so eviction cannot outrun its log.
+            if (context_ && context_->txn_ && context_->log_mgr_) {
+                Rid logged_rid = reserved;
+                InsertLogRecord log_record(context_->txn_->get_transaction_id(), rec, logged_rid, tab_name_);
+                log_record.prev_lsn_ = context_->txn_->get_prev_lsn();
+                lsn_t lsn = context_->log_mgr_->add_log_to_buffer(&log_record);
+                context_->txn_->set_prev_lsn(lsn);
+                context_->log_mgr_->flush_log_to_disk();
+            }
+            if (context_ && context_->txn_) {
+                context_->txn_->append_write_record(new WriteRecord(WType::INSERT_TUPLE, tab_name_, reserved));
+            }
+        });
 
         for (auto &index : tab_.indexes) {
             auto ih = sm_manager_->ihs_.at(sm_manager_->get_ix_manager()->get_index_name(tab_name_, index.cols)).get();
             auto key = make_index_key(index, rec.data);
-            ih->insert_entry(key.get(), rid_, context_->txn_);
-        }
-        if (context_ != nullptr && context_->txn_ != nullptr) {
-            context_->txn_->append_write_record(new WriteRecord(WType::INSERT_TUPLE, tab_name_, rid_));
+            ih->insert_entry(key.get(), rid_, context_ ? context_->txn_ : nullptr);
         }
         return nullptr;
     }

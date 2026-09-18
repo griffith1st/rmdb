@@ -37,6 +37,7 @@ static std::string LogTypeStr[] = {
 
 class LogRecord {
 public:
+    virtual ~LogRecord() = default;
     LogType log_type_;         /* 日志对应操作的类型 */
     lsn_t lsn_;                /* 当前日志的lsn */
     uint32_t log_tot_len_;     /* 整个日志记录的长度 */
@@ -129,6 +130,7 @@ public:
 
 class InsertLogRecord: public LogRecord {
 public:
+    ~InsertLogRecord() override { delete[] table_name_; }
     InsertLogRecord() {
         log_type_ = LogType::INSERT;
         lsn_ = INVALID_LSN;
@@ -136,8 +138,9 @@ public:
         log_tid_ = INVALID_TXN_ID;
         prev_lsn_ = INVALID_LSN;
         table_name_ = nullptr;
+        table_name_size_ = 0;
     }
-    InsertLogRecord(txn_id_t txn_id, RmRecord& insert_value, Rid& rid, std::string table_name) 
+    InsertLogRecord(txn_id_t txn_id, const RmRecord& insert_value, const Rid& rid, std::string table_name)
         : InsertLogRecord() {
         log_tid_ = txn_id;
         insert_value_ = insert_value;
@@ -196,6 +199,7 @@ public:
 */
 class DeleteLogRecord: public LogRecord {
 public:
+    ~DeleteLogRecord() override { delete[] table_name_; }
     DeleteLogRecord() {
         log_type_ = LogType::DELETE;
         lsn_ = INVALID_LSN;
@@ -253,6 +257,7 @@ public:
 */
 class UpdateLogRecord: public LogRecord {
 public:
+    ~UpdateLogRecord() override { delete[] table_name_; }
     UpdateLogRecord() {
         log_type_ = LogType::UPDATE;
         lsn_ = INVALID_LSN;
@@ -343,6 +348,12 @@ public:
     
     lsn_t add_log_to_buffer(LogRecord* log_record);
     void flush_log_to_disk();
+
+    // Called once after startup analysis, before any client can append a log.
+    void set_next_lsn(lsn_t next_lsn) {
+        global_lsn_ = next_lsn;
+        persist_lsn_ = next_lsn - 1;
+    }
 
     LogBuffer* get_log_buffer() { return &log_buffer_; }
 

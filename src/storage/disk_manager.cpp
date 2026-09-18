@@ -4,6 +4,7 @@ RMDB is licensed under Mulan PSL v2. */
 #include "storage/disk_manager.h"
 
 #include <assert.h>
+#include <cerrno>
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -13,27 +14,33 @@ RMDB is licensed under Mulan PSL v2. */
 DiskManager::DiskManager() { memset(fd2pageno_, 0, MAX_FD * (sizeof(std::atomic<page_id_t>) / sizeof(char))); }
 
 void DiskManager::write_page(int fd, page_id_t page_no, const char *offset, int num_bytes) {
-    off_t pos = static_cast<off_t>(page_no) * PAGE_SIZE;
-    if (lseek(fd, pos, SEEK_SET) == -1) {
-        throw UnixError();
-    }
-    ssize_t bytes_write = write(fd, offset, num_bytes);
-    if (bytes_write != num_bytes) {
-        throw InternalError("DiskManager::write_page Error");
+    const off_t pos = static_cast<off_t>(page_no) * PAGE_SIZE;
+    int written = 0;
+    while (written < num_bytes) {
+        ssize_t count = pwrite(fd, offset + written, num_bytes - written, pos + written);
+        if (count < 0) {
+            if (errno == EINTR) continue;
+            throw UnixError();
+        }
+        if (count == 0) throw InternalError("DiskManager::write_page made no progress");
+        written += count;
     }
 }
 
 void DiskManager::read_page(int fd, page_id_t page_no, char *offset, int num_bytes) {
-    off_t pos = static_cast<off_t>(page_no) * PAGE_SIZE;
-    if (lseek(fd, pos, SEEK_SET) == -1) {
-        throw UnixError();
-    }
-    ssize_t bytes_read = read(fd, offset, num_bytes);
-    if (bytes_read < 0) {
-        throw UnixError();
-    }
-    if (bytes_read < num_bytes) {
-        memset(offset + bytes_read, 0, num_bytes - bytes_read);
+    const off_t pos = static_cast<off_t>(page_no) * PAGE_SIZE;
+    int received = 0;
+    while (received < num_bytes) {
+        ssize_t count = pread(fd, offset + received, num_bytes - received, pos + received);
+        if (count < 0) {
+            if (errno == EINTR) continue;
+            throw UnixError();
+        }
+        if (count == 0) {
+            memset(offset + received, 0, num_bytes - received);
+            break;
+        }
+        received += count;
     }
 }
 
@@ -159,13 +166,24 @@ int DiskManager::read_log(char *log_data, int size, int offset) {
 }
 
 void DiskManager::write_log(char *log_data, int size) {
+    std::lock_guard<std::mutex> lock(log_latch_);
     if (log_fd_ == -1) {
         log_fd_ = open_file(LOG_FILE_NAME);
     }
 
-    lseek(log_fd_, 0, SEEK_END);
-    ssize_t bytes_write = write(log_fd_, log_data, size);
-    if (bytes_write != size) {
-        throw UnixError();
+    if (lseek(log_fd_, 0, SEEK_END) < 0) throw UnixError();
+    int written = 0;
+    while (written < size) {
+        ssize_t count = write(log_fd_, log_data + written, size - written);
+        if (count < 0) {
+            if (errno == EINTR) continue;
+            throw UnixError();
+        }
+        if (count == 0) throw InternalError("DiskManager::write_log made no progress");
+        written += count;
+    }
+    // A durable LSN must never be published before the WAL reaches stable storage.
+    while (fdatasync(log_fd_) < 0) {
+        if (errno != EINTR) throw UnixError();
     }
 }

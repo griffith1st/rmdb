@@ -13,6 +13,7 @@ See the Mulan PSL v2 for more details. */
 #include <assert.h>
 
 #include <memory>
+#include <functional>
 
 #include "bitmap.h"
 #include "common/context.h"
@@ -67,13 +68,20 @@ class RmFileHandle {
 
     /* 判断指定位置上是否已经存在一条记录，通过Bitmap来判断 */
     bool is_record(const Rid &rid) const {
+        if (rid.page_no < RM_FIRST_RECORD_PAGE || rid.page_no >= file_hdr_.num_pages ||
+            rid.slot_no < 0 || rid.slot_no >= file_hdr_.num_records_per_page) {
+            return false;
+        }
         RmPageHandle page_handle = fetch_page_handle(rid.page_no);
-        return Bitmap::is_set(page_handle.bitmap, rid.slot_no);  // page的slot_no位置上是否有record
+        const bool exists = Bitmap::is_set(page_handle.bitmap, rid.slot_no);
+        buffer_pool_manager_->unpin_page(page_handle.page->get_page_id(), false);
+        return exists;
     }
 
     std::unique_ptr<RmRecord> get_record(const Rid &rid, Context *context) const;
 
-    Rid insert_record(char *buf, Context *context);
+    Rid insert_record(char *buf, Context *context,
+                      const std::function<void(const Rid &)> &before_insert = {});
 
     void insert_record(const Rid &rid, char *buf);
 
@@ -84,6 +92,9 @@ class RmFileHandle {
     RmPageHandle create_new_page_handle();
 
     RmPageHandle fetch_page_handle(int page_no) const;
+
+    // Reconcile derived free-space metadata with page bitmaps before/after redo.
+    void rebuild_free_page_list();
 
    private:
     RmPageHandle create_page_handle();

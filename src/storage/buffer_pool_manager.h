@@ -76,6 +76,9 @@ class BufferPoolManager {
 
     void flush_all_pages(int fd);
 
+    // Flush and evict cached pages before the OS may reuse this file descriptor.
+    void close_file(int fd);
+
    private:
     bool find_victim_page(frame_id_t* frame_id);
 

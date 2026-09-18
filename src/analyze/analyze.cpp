@@ -95,6 +95,16 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse)
             SetClause set_clause;
             set_clause.lhs = {.tab_name = x->tab_name, .col_name = sv_set_clause->col_name};
             set_clause.rhs = convert_sv_value(sv_set_clause->val);
+            if (sv_set_clause->arithmetic != 0) {
+                const auto &source = sv_set_clause->source;
+                set_clause.source = check_column(tab.cols, {source->tab_name, source->col_name});
+                auto source_col = tab.get_col(set_clause.source.col_name);
+                if (source_col->type != col->type ||
+                    (col->type != TYPE_INT && col->type != TYPE_BIGINT && col->type != TYPE_FLOAT)) {
+                    throw IncompatibleTypeError("numeric UPDATE expression", coltype2str(col->type));
+                }
+                set_clause.arithmetic = sv_set_clause->arithmetic;
+            }
             coerce_value_to_col(set_clause.rhs, *col);
             query->set_clauses.push_back(set_clause);
         }

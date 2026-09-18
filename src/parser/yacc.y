@@ -227,10 +227,14 @@ value:
     {
         $$ = std::make_shared<IntLit>($1);
     }
+    | '-' VALUE_INT { $$ = std::make_shared<IntLit>("-" + $2); }
+    | '+' VALUE_INT { $$ = std::make_shared<IntLit>($2); }
     |   VALUE_FLOAT
     {
         $$ = std::make_shared<FloatLit>($1);
     }
+    | '-' VALUE_FLOAT { $$ = std::make_shared<FloatLit>(-$2); }
+    | '+' VALUE_FLOAT { $$ = std::make_shared<FloatLit>($2); }
     |   VALUE_STRING
     {
         $$ = std::make_shared<StringLit>($1);
@@ -338,6 +342,14 @@ setClause:
         colName '=' value
     {
         $$ = std::make_shared<SetClause>($1, $3);
+    }
+    | colName '=' col '+' value
+    {
+        $$ = std::make_shared<SetClause>($1, $5, $3, '+');
+    }
+    | colName '=' col '-' value
+    {
+        $$ = std::make_shared<SetClause>($1, $5, $3, '-');
     }
     ;
 

@@ -160,9 +160,14 @@ struct Col : public Expr {
 struct SetClause : public TreeNode {
     std::string col_name;
     std::shared_ptr<Value> val;
+    std::shared_ptr<Col> source;
+    char arithmetic = 0;
 
     SetClause(std::string col_name_, std::shared_ptr<Value> val_) :
             col_name(std::move(col_name_)), val(std::move(val_)) {}
+
+    SetClause(std::string name, std::shared_ptr<Value> value, std::shared_ptr<Col> column, char op)
+        : col_name(std::move(name)), val(std::move(value)), source(std::move(column)), arithmetic(op) {}
 };
 
 struct BinaryExpr : public TreeNode {

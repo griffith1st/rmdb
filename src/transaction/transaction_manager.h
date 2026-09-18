@@ -38,6 +38,9 @@ public:
 
     void abort(Transaction* txn, LogManager* log_manager);
 
+    // Recovery supplies the first unused ID before accepting connections.
+    void set_next_txn_id(txn_id_t next_txn_id) { next_txn_id_ = next_txn_id; }
+
     ConcurrencyMode get_concurrency_mode() { return concurrency_mode_; }
 
     void set_concurrency_mode(ConcurrencyMode concurrency_mode) { concurrency_mode_ = concurrency_mode; }

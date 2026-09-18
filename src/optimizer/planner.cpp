@@ -277,7 +277,11 @@ std::shared_ptr<Plan> Planner::make_one_rel(std::shared_ptr<Query> query)
 std::shared_ptr<Plan> Planner::generate_sort_plan(std::shared_ptr<Query> query, std::shared_ptr<Plan> plan)
 {
     auto x = std::dynamic_pointer_cast<ast::SelectStmt>(query->parse);
-    if(!x->has_sort && x->limit < 0) {
+    // Aggregation is evaluated by QlManager after its input executor finishes.
+    // A SELECT limit must therefore never truncate aggregate input tuples.
+    const bool is_aggregate = !query->cols.empty() && query->cols.front().agg_type != AGG_NONE;
+    const int input_limit = is_aggregate ? -1 : x->limit;
+    if(!x->has_sort && input_limit < 0) {
         return plan;
     }
     std::vector<std::string> tables = query->tables;
@@ -322,7 +326,7 @@ std::shared_ptr<Plan> Planner::generate_sort_plan(std::shared_ptr<Query> query, 
             is_desc.push_back(x->order->orderby_dirs[i] == ast::OrderBy_DESC);
         }
     }
-    return std::make_shared<SortPlan>(T_Sort, std::move(plan), std::move(sort_cols), std::move(is_desc), x->limit);
+    return std::make_shared<SortPlan>(T_Sort, std::move(plan), std::move(sort_cols), std::move(is_desc), input_limit);
 }
 
 
@@ -339,9 +343,11 @@ std::shared_ptr<Plan> Planner::generate_select_plan(std::shared_ptr<Query> query
 
     //物理优化
     auto sel_cols = query->cols;
+    auto select = std::dynamic_pointer_cast<ast::SelectStmt>(query->parse);
+    const int aggregate_limit = !sel_cols.empty() && sel_cols.front().agg_type != AGG_NONE ? select->limit : -1;
     std::shared_ptr<Plan> plannerRoot = physical_optimization(query, context);
     plannerRoot = std::make_shared<ProjectionPlan>(T_Projection, std::move(plannerRoot), 
-                                                        std::move(sel_cols));
+                                                        std::move(sel_cols), aggregate_limit);
 
     return plannerRoot;
 }

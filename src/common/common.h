@@ -107,4 +107,6 @@ struct Condition {
 struct SetClause {
     TabCol lhs;
     Value rhs;
+    TabCol source;
+    char arithmetic = 0;
 };

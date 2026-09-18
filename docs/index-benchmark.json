@@ -1,0 +1,226 @@
+{
+  "schema_version": 1,
+  "started_at_utc": "2026-09-18T16:34:45.625634+00:00",
+  "completed_at_utc": "2026-09-18T16:35:37.460104+00:00",
+  "scope": "Local reproducible measurement only; not an official grading result.",
+  "environment": {
+    "platform": "Linux-5.15.167.4-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+    "kernel": "5.15.167.4-microsoft-standard-WSL2",
+    "machine": "x86_64",
+    "cpu_model": "12th Gen Intel(R) Core(TM) i9-12900HX",
+    "logical_cpu_count": 24,
+    "python": "3.12.3",
+    "binary": "/mnt/e/Code/rmdb-audit-20260918/build/bin/rmdb",
+    "binary_sha256": "7f301b0c8c14033469a5d53544c47aebffbd96308972e11c9bad3df569f32687",
+    "binary_bytes": 12007120,
+    "temporary_database_parent": "/tmp",
+    "transport": "TCP loopback 127.0.0.1:8765, one client, shared harness port lock",
+    "cache_policy": "One complete warmup batch per phase; OS/DB caches are not cleared."
+  },
+  "workload": {
+    "row_count": 10000,
+    "schema": "bench(id INT, payload INT)",
+    "data": "id=1..10000, payload=id*7; inserted in one explicit transaction",
+    "index": "unique single-column index bench(id)",
+    "queries_per_batch": 30,
+    "equality_queries_per_batch": 20,
+    "range_queries_per_batch": 10,
+    "expected_rows_per_batch": 70,
+    "warmup_batches_per_phase": 1,
+    "measured_batches_per_phase": 3,
+    "queries": [
+      {
+        "kind": "equality",
+        "sql": "select id,payload from bench where id=1;",
+        "expected_row_count": 1
+      },
+      {
+        "kind": "equality",
+        "sql": "select id,payload from bench where id=500;",
+        "expected_row_count": 1
+      },
+      {
+        "kind": "equality",
+        "sql": "select id,payload from bench where id=999;",
+        "expected_row_count": 1
+      },
+      {
+        "kind": "equality",
+        "sql": "select id,payload from bench where id=1498;",
+        "expected_row_count": 1
+      },
+      {
+        "kind": "equality",
+        "sql": "select id,payload from bench where id=1997;",
+        "expected_row_count": 1
+      },
+      {
+        "kind": "equality",
+        "sql": "select id,payload from bench where id=2496;",
+        "expected_row_count": 1
+      },
+      {
+        "kind": "equality",
+        "sql": "select id,payload from bench where id=2995;",
+        "expected_row_count": 1
+      },
+      {
+        "kind": "equality",
+        "sql": "select id,payload from bench where id=3494;",
+        "expected_row_count": 1
+      },
+      {
+        "kind": "equality",
+        "sql": "select id,payload from bench where id=3993;",
+        "expected_row_count": 1
+      },
+      {
+        "kind": "equality",
+        "sql": "select id,payload from bench where id=4492;",
+        "expected_row_count": 1
+      },
+      {
+        "kind": "equality",
+        "sql": "select id,payload from bench where id=4991;",
+        "expected_row_count": 1
+      },
+      {
+        "kind": "equality",
+        "sql": "select id,payload from bench where id=5490;",
+        "expected_row_count": 1
+      },
+      {
+        "kind": "equality",
+        "sql": "select id,payload from bench where id=5989;",
+        "expected_row_count": 1
+      },
+      {
+        "kind": "equality",
+        "sql": "select id,payload from bench where id=6488;",
+        "expected_row_count": 1
+      },
+      {
+        "kind": "equality",
+        "sql": "select id,payload from bench where id=6987;",
+        "expected_row_count": 1
+      },
+      {
+        "kind": "equality",
+        "sql": "select id,payload from bench where id=7486;",
+        "expected_row_count": 1
+      },
+      {
+        "kind": "equality",
+        "sql": "select id,payload from bench where id=7985;",
+        "expected_row_count": 1
+      },
+      {
+        "kind": "equality",
+        "sql": "select id,payload from bench where id=8484;",
+        "expected_row_count": 1
+      },
+      {
+        "kind": "equality",
+        "sql": "select id,payload from bench where id=8983;",
+        "expected_row_count": 1
+      },
+      {
+        "kind": "equality",
+        "sql": "select id,payload from bench where id=9482;",
+        "expected_row_count": 1
+      },
+      {
+        "kind": "range",
+        "sql": "select id,payload from bench where id>=1 and id<6 order by id;",
+        "expected_row_count": 5
+      },
+      {
+        "kind": "range",
+        "sql": "select id,payload from bench where id>=1001 and id<1006 order by id;",
+        "expected_row_count": 5
+      },
+      {
+        "kind": "range",
+        "sql": "select id,payload from bench where id>=2001 and id<2006 order by id;",
+        "expected_row_count": 5
+      },
+      {
+        "kind": "range",
+        "sql": "select id,payload from bench where id>=3001 and id<3006 order by id;",
+        "expected_row_count": 5
+      },
+      {
+        "kind": "range",
+        "sql": "select id,payload from bench where id>=4001 and id<4006 order by id;",
+        "expected_row_count": 5
+      },
+      {
+        "kind": "range",
+        "sql": "select id,payload from bench where id>=5001 and id<5006 order by id;",
+        "expected_row_count": 5
+      },
+      {
+        "kind": "range",
+        "sql": "select id,payload from bench where id>=6001 and id<6006 order by id;",
+        "expected_row_count": 5
+      },
+      {
+        "kind": "range",
+        "sql": "select id,payload from bench where id>=7001 and id<7006 order by id;",
+        "expected_row_count": 5
+      },
+      {
+        "kind": "range",
+        "sql": "select id,payload from bench where id>=8001 and id<8006 order by id;",
+        "expected_row_count": 5
+      },
+      {
+        "kind": "range",
+        "sql": "select id,payload from bench where id>=9001 and id<9006 order by id;",
+        "expected_row_count": 5
+      }
+    ]
+  },
+  "measurement": {
+    "clock": "time.perf_counter_ns",
+    "unit": "seconds",
+    "timed_scope": "Total end-to-end latency of all 30 queries in a batch, including TCP request/response, server execution/output/auto-commit, and harness output.txt reading/parsing. Result assertions, setup, index creation, and warmup are excluded.",
+    "setup_seconds_excluded": 49.082011231999985,
+    "index_build_seconds_excluded": 0.03047047699999439,
+    "without_index": {
+      "warmup_seconds_excluded": 0.476260984,
+      "batch_seconds": [
+        0.484404566,
+        0.483964567,
+        0.480923247
+      ],
+      "median_batch_seconds": 0.483964567
+    },
+    "with_index": {
+      "warmup_seconds_excluded": 0.146455384,
+      "batch_seconds": [
+        0.145718094,
+        0.150598729,
+        0.150053161
+      ],
+      "median_batch_seconds": 0.150053161
+    },
+    "indexed_to_unindexed_median_ratio": 0.31004989049125986,
+    "indexed_to_unindexed_percent": 31.004989049125985,
+    "criterion_ratio_from_test_document": 0.7,
+    "local_measurement_meets_criterion": true
+  },
+  "correctness": {
+    "all_batches_match_fixture": true,
+    "before_after_results_identical": true,
+    "validated_query_executions": 240,
+    "result_sha256": "54fabe224b4ca1bfe52c514c090633dee98abbad3d9c413a942ea4c8a8e68994"
+  },
+  "limitations": [
+    "The official test document requires time_b/time_a <= 0.70; this local workload and host differ from grading.",
+    "Only a single INT-column index is measured; the official composite-index speed criterion is not measured.",
+    "Latency varies with host load, scheduling, caches, and filesystem behavior; no timing assertion is added to CTest.",
+    "The existing index uses an ordered in-memory vector; this measurement does not demonstrate a disk B+ tree.",
+    "Index creation and inserts are excluded from query latency, so this is not an overall workload-speedup claim."
+  ]
+}
