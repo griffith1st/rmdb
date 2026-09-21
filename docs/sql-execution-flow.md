@@ -3,6 +3,7 @@
 > 本文按**层次分类**画出从客户端发出 SQL 到结果回包的完整函数调用链。
 > 所有节点都对应仓库当前 main 分支的真实代码，标了函数名与文件。
 > 图形使用 Mermaid 书写，GitHub 会原生渲染；本地可用支持 Mermaid 的编辑器（VS Code + Markdown Preview Mermaid）查看。
+> 文字主线见 [面试问答](interview-qa.md)，深挖专题见 [RMDB 面试项目深度准备](RMDB面试项目深度准备.md)。
 
 ## 图索引
 
