@@ -39,11 +39,12 @@ class BufferPoolManager {
         // 为buffer pool分配一块连续的内存空间
         pages_ = new Page[pool_size_];
         // 可以被Replacer改变
-        if (REPLACER_TYPE.compare("LRU"))
+        // 注意：std::string::compare 在相等时返回 0，不能直接作为 if 条件，
+        // 否则 REPLACER_TYPE 为 "LRU" 时会走进错误分支，策略选择形同虚设。
+        if (REPLACER_TYPE == "LRU") {
             replacer_ = new LRUReplacer(pool_size_);
-        else if (REPLACER_TYPE.compare("CLOCK"))
-            replacer_ = new LRUReplacer(pool_size_);
-        else {
+        } else {
+            // 目前只实现了 LRU，CLOCK 等策略留作扩展点。
             replacer_ = new LRUReplacer(pool_size_);
         }
         // 初始化时，所有的page都在free_list_中

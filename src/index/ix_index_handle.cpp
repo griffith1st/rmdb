@@ -277,12 +277,18 @@ Iid IxIndexHandle::leaf_begin() const {
 
 IxNodeHandle *IxIndexHandle::fetch_node(int page_no) const {
     Page *page = buffer_pool_manager_->fetch_page(PageId{fd_, page_no});
+    if (page == nullptr) {
+        throw InternalError("Fetch index page failed");
+    }
     return new IxNodeHandle(file_hdr_, page);
 }
 
 IxNodeHandle *IxIndexHandle::create_node() {
     PageId new_page_id = {.fd = fd_, .page_no = INVALID_PAGE_ID};
     Page *page = buffer_pool_manager_->new_page(&new_page_id);
+    if (page == nullptr) {
+        throw InternalError("Create index page failed");
+    }
     file_hdr_->num_pages_++;
     return new IxNodeHandle(file_hdr_, page);
 }
